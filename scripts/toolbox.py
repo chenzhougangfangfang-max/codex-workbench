@@ -1,12 +1,23 @@
 #!/usr/bin/env python3
 import argparse
+import datetime as dt
 import re
 from pathlib import Path
+
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from lunardate import LunarDate
 
 
 SYSTEM_ROOT = Path("/home/chengang/.codex/skills/.system")
 USER_ROOT = Path("/home/chengang/.codex/skills")
 AGENTS_ROOT = Path("/home/chengang/.agents/skills")
+CALENDAR_DIR = Path("/home/chengang/桌面/codex-workbench/scripts/google-calendar")
+CALENDAR_CREDENTIALS_FILE = CALENDAR_DIR / "credentials.json"
+CALENDAR_TOKEN_FILE = CALENDAR_DIR / "token.json"
+CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
 def has_skill_md(path: Path) -> bool:
@@ -233,6 +244,131 @@ def vet_skill(args) -> int:
     return 1 if any_failures else 0
 
 
+def load_calendar_credentials() -> Credentials:
+    creds = None
+    if CALENDAR_TOKEN_FILE.exists():
+        creds = Credentials.from_authorized_user_file(str(CALENDAR_TOKEN_FILE), CALENDAR_SCOPES)
+
+    if creds and creds.valid:
+        return creds
+
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+    else:
+        if not CALENDAR_CREDENTIALS_FILE.exists():
+            raise SystemExit(
+                "Missing credentials.json. Place it in scripts/google-calendar/ before using calendar commands."
+            )
+        flow = InstalledAppFlow.from_client_secrets_file(str(CALENDAR_CREDENTIALS_FILE), CALENDAR_SCOPES)
+        creds = flow.run_local_server(port=0)
+
+    CALENDAR_TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
+    return creds
+
+
+def calendar_service():
+    return build("calendar", "v3", credentials=load_calendar_credentials())
+
+
+def format_lunar(date_obj: dt.date) -> str:
+    lunar = LunarDate.fromSolarDate(date_obj.year, date_obj.month, date_obj.day)
+    leap = " leap" if lunar.isLeapMonth else ""
+    return f"Lunar {lunar.year}-{lunar.month:02d}-{lunar.day:02d}{leap}"
+
+
+def parse_event_date(event: dict) -> dt.date | None:
+    start = event.get("start", {})
+    if "dateTime" in start:
+        return dt.datetime.fromisoformat(start["dateTime"]).date()
+    if "date" in start:
+        return dt.date.fromisoformat(start["date"])
+    return None
+
+
+def calendar_list(_: argparse.Namespace) -> int:
+    service = calendar_service()
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
+    events_result = (
+        service.events()
+        .list(
+            calendarId="primary",
+            timeMin=now,
+            maxResults=10,
+            singleEvents=True,
+            orderBy="startTime",
+        )
+        .execute()
+    )
+    events = events_result.get("items", [])
+
+    if not events:
+        print("No upcoming events found.")
+        return 0
+
+    for idx, event in enumerate(events, 1):
+        start = event["start"].get("dateTime", event["start"].get("date"))
+        summary = event.get("summary", "(no title)")
+        event_date = parse_event_date(event)
+        lunar_text = f"  [{format_lunar(event_date)}]" if event_date else ""
+        print(f"{idx}. {start}  {summary}{lunar_text}")
+    return 0
+
+
+def calendar_today(_: argparse.Namespace) -> int:
+    service = calendar_service()
+    local_now = dt.datetime.now().astimezone()
+    start_of_day = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = start_of_day + dt.timedelta(days=1)
+
+    events_result = (
+        service.events()
+        .list(
+            calendarId="primary",
+            timeMin=start_of_day.isoformat(),
+            timeMax=end_of_day.isoformat(),
+            singleEvents=True,
+            orderBy="startTime",
+        )
+        .execute()
+    )
+    events = events_result.get("items", [])
+
+    if not events:
+        print("No events scheduled for today.")
+        return 0
+
+    print(f"Today's events ({start_of_day.date()}, {format_lunar(start_of_day.date())}):")
+    for idx, event in enumerate(events, 1):
+        start = event["start"].get("dateTime", event["start"].get("date"))
+        summary = event.get("summary", "(no title)")
+        event_date = parse_event_date(event)
+        lunar_text = f"  [{format_lunar(event_date)}]" if event_date else ""
+        print(f"{idx}. {start}  {summary}{lunar_text}")
+    return 0
+
+
+def parse_datetime(value: str) -> str:
+    try:
+        return dt.datetime.fromisoformat(value).isoformat()
+    except ValueError as exc:
+        raise SystemExit("Datetime must use ISO format like 2026-04-01T09:00:00+08:00") from exc
+
+
+def calendar_create(args: argparse.Namespace) -> int:
+    service = calendar_service()
+    event = {
+        "summary": args.summary,
+        "description": args.description,
+        "location": args.location,
+        "start": {"dateTime": parse_datetime(args.start)},
+        "end": {"dateTime": parse_datetime(args.end)},
+    }
+    created = service.events().insert(calendarId="primary", body=event).execute()
+    print("Created event:")
+    print(created.get("htmlLink", "(no link)"))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Unified toolbox entrypoint for local Codex utilities.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -246,6 +382,23 @@ def main() -> int:
     vet_parser.add_argument("--batch", action="store_true", help="Treat path as a directory containing many skill folders.")
     vet_parser.add_argument("--report", help="Write a Markdown report to this file path.")
     vet_parser.set_defaults(func=vet_skill)
+
+    calendar_parser = subparsers.add_parser("calendar", help="Google Calendar utilities.")
+    calendar_subparsers = calendar_parser.add_subparsers(dest="calendar_command", required=True)
+
+    calendar_list_parser = calendar_subparsers.add_parser("list", help="List the next 10 calendar events.")
+    calendar_list_parser.set_defaults(func=calendar_list)
+
+    calendar_today_parser = calendar_subparsers.add_parser("today", help="List today's calendar events.")
+    calendar_today_parser.set_defaults(func=calendar_today)
+
+    calendar_create_parser = calendar_subparsers.add_parser("create", help="Create a calendar event.")
+    calendar_create_parser.add_argument("--summary", required=True, help="Event title")
+    calendar_create_parser.add_argument("--start", required=True, help="Start datetime in ISO format")
+    calendar_create_parser.add_argument("--end", required=True, help="End datetime in ISO format")
+    calendar_create_parser.add_argument("--description", default="", help="Optional description")
+    calendar_create_parser.add_argument("--location", default="", help="Optional location")
+    calendar_create_parser.set_defaults(func=calendar_create)
 
     args = parser.parse_args()
     return args.func(args)

@@ -1,0 +1,59 @@
+# Google Calendar Cheatsheet
+
+## Natural Language Prompts
+
+- `帮我看今天的日历安排`
+- `列出我今天的 Google Calendar 事件`
+- `帮我看接下来 10 个日历事件`
+- `创建日历事件：标题=和客户开会，开始=2026-04-01T09:00:00+08:00，结束=2026-04-01T10:00:00+08:00，描述=讨论需求`
+
+## Commands
+
+Unified entrypoint:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/toolbox.py calendar today
+python3 scripts/toolbox.py calendar list
+python3 scripts/toolbox.py calendar create \
+  --summary "和客户开会" \
+  --start "2026-04-01T09:00:00+08:00" \
+  --end "2026-04-01T10:00:00+08:00" \
+  --description "讨论需求"
+```
+
+Show today:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/google-calendar/today_events.py
+```
+
+Show next 10 events:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/google-calendar/list_events.py
+```
+
+Create an event:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/google-calendar/create_event.py \
+  --summary "和客户开会" \
+  --start "2026-04-01T09:00:00+08:00" \
+  --end "2026-04-01T10:00:00+08:00" \
+  --description "讨论需求"
+```
+
+## Notes
+
+- `credentials.json` and `token.json` are local only and ignored by Git
+- Event listings now include Chinese lunar date annotations
+- Event times should use ISO format with timezone, for example:
+  `2026-04-01T09:00:00+08:00`

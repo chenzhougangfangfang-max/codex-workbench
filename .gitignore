@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 *.pyo
+.venv/
 
 # OS files
 .DS_Store
@@ -11,3 +12,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Google Calendar local secrets
+credentials.json
+token.json
+scripts/google-calendar/credentials.json
+scripts/google-calendar/token.json
