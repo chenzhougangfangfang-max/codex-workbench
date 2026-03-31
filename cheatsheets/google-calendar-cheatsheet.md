@@ -21,6 +21,12 @@ python3 scripts/toolbox.py calendar create \
   --start "2026-04-01T09:00:00+08:00" \
   --end "2026-04-01T10:00:00+08:00" \
   --description "讨论需求"
+python3 scripts/toolbox.py calendar create \
+  --summary "和客户开会" \
+  --date "2026-04-01" \
+  --start-time "09:00" \
+  --end-time "10:00" \
+  --description "讨论需求"
 ```
 
 Show today:
@@ -48,6 +54,19 @@ python3 scripts/google-calendar/create_event.py \
   --summary "和客户开会" \
   --start "2026-04-01T09:00:00+08:00" \
   --end "2026-04-01T10:00:00+08:00" \
+  --description "讨论需求"
+```
+
+Create with date and time only:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/google-calendar/create_event.py \
+  --summary "和客户开会" \
+  --date "2026-04-01" \
+  --start-time "09:00" \
+  --end-time "10:00" \
   --description "讨论需求"
 ```
 
