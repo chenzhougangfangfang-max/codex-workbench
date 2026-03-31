@@ -95,3 +95,17 @@ python3 scripts/google-calendar/create_event.py \
   --end-time "10:00" \
   --description "讨论需求"
 ```
+
+Use a Chinese period label:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/google-calendar/create_event.py \
+  --summary "和客户开会" \
+  --relative-date "明天" \
+  --period "上午" \
+  --start-time "09:00" \
+  --end-time "10:00" \
+  --description "讨论需求"
+```
