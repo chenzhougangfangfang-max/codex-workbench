@@ -25,6 +25,7 @@ python3 scripts/toolbox.py digest today
 python3 scripts/toolbox.py digest today --format feishu
 python3 scripts/toolbox.py digest today --format telegram
 python3 scripts/toolbox.py digest push today --channel feishu --user-id ou_xxx
+python3 scripts/toolbox.py digest push today --channel feishu --user-id ou_xxx --user-id ou_yyy
 python3 scripts/toolbox.py digest push today --channel telegram --chat-id 123456789 --token "<bot_token>"
 python3 scripts/toolbox.py calendar list
 python3 scripts/toolbox.py calendar list-ids
@@ -177,13 +178,35 @@ Push combined digest directly:
 cd /home/chengang/桌面/codex-workbench
 source .venv/bin/activate
 python3 scripts/toolbox.py digest push today --channel feishu --user-id ou_xxx
+python3 scripts/toolbox.py digest push today --channel feishu --user-id ou_xxx --user-id ou_yyy
 python3 scripts/toolbox.py digest push today --channel telegram --chat-id 123456789 --token "<bot_token>"
+```
+
+Telegram quick usage:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/toolbox.py digest today --format telegram
+python3 scripts/toolbox.py calendar summary today --format telegram
+python3 scripts/toolbox.py digest push today --channel telegram --chat-id 8241532640 --token "<bot_token>"
+python3 scripts/toolbox.py calendar push today --channel telegram --chat-id 8241532640 --token "<bot_token>"
+```
+
+Use TELEGRAM_BOT_TOKEN to shorten commands:
+
+```bash
+export TELEGRAM_BOT_TOKEN="<bot_token>"
+python3 scripts/toolbox.py digest push today --channel telegram --chat-id 8241532640
+python3 scripts/toolbox.py calendar push today --channel telegram --chat-id 8241532640
 ```
 
 ## Notes
 
 - `credentials.json` and `token.json` are local only and ignored by Git
 - Telegram push can also read `TELEGRAM_BOT_TOKEN` from the environment
+- Telegram bots usually need you to send them a first message before push tests work
+- Never paste a real Telegram bot token into chat; rotate it if it has been exposed
 - Event listings now include Chinese lunar date annotations
 - `digest today` 目前合并的是“今日日历摘要 + 今日新闻摘要请求模板”，新闻部分不是本地实时抓取结果
 - Event times should use ISO format with timezone, for example:
