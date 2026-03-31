@@ -364,6 +364,18 @@ def parse_local_datetime(date_text: str, time_text: str) -> str:
     return dt.datetime.combine(date_part, time_part, tzinfo=local_tz).isoformat()
 
 
+def parse_relative_date(label: str) -> str:
+    today = dt.date.today()
+    mapping = {
+        "今天": today,
+        "明天": today + dt.timedelta(days=1),
+        "后天": today + dt.timedelta(days=2),
+    }
+    if label not in mapping:
+        raise SystemExit("Relative date must be one of: 今天, 明天, 后天")
+    return mapping[label].isoformat()
+
+
 def calendar_create(args: argparse.Namespace) -> int:
     service = calendar_service()
     if args.start and args.end:
@@ -372,8 +384,15 @@ def calendar_create(args: argparse.Namespace) -> int:
     elif args.date and args.start_time and args.end_time:
         start_value = parse_local_datetime(args.date, args.start_time)
         end_value = parse_local_datetime(args.date, args.end_time)
+    elif args.relative_date and args.start_time and args.end_time:
+        resolved_date = parse_relative_date(args.relative_date)
+        start_value = parse_local_datetime(resolved_date, args.start_time)
+        end_value = parse_local_datetime(resolved_date, args.end_time)
     else:
-        raise SystemExit("Provide either --start/--end or --date/--start-time/--end-time.")
+        raise SystemExit(
+            "Provide either --start/--end, --date/--start-time/--end-time, "
+            "or --relative-date/--start-time/--end-time."
+        )
     event = {
         "summary": args.summary,
         "description": args.description,
@@ -415,6 +434,7 @@ def main() -> int:
     calendar_create_parser.add_argument("--start", help="Start datetime in ISO format")
     calendar_create_parser.add_argument("--end", help="End datetime in ISO format")
     calendar_create_parser.add_argument("--date", help="Event date in YYYY-MM-DD")
+    calendar_create_parser.add_argument("--relative-date", help="Relative date in Chinese: 今天, 明天, 后天")
     calendar_create_parser.add_argument("--start-time", help="Start time in HH:MM")
     calendar_create_parser.add_argument("--end-time", help="End time in HH:MM")
     calendar_create_parser.add_argument("--description", default="", help="Optional description")

@@ -57,12 +57,25 @@ def parse_local_datetime(date_text: str, time_text: str) -> str:
     return dt.datetime.combine(date_part, time_part, tzinfo=local_tz).isoformat()
 
 
+def parse_relative_date(label: str) -> str:
+    today = dt.date.today()
+    mapping = {
+        "今天": today,
+        "明天": today + dt.timedelta(days=1),
+        "后天": today + dt.timedelta(days=2),
+    }
+    if label not in mapping:
+        raise SystemExit("Relative date must be one of: 今天, 明天, 后天")
+    return mapping[label].isoformat()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create a Google Calendar event in the primary calendar.")
     parser.add_argument("--summary", required=True, help="Event title")
     parser.add_argument("--start", help="Start datetime in ISO format")
     parser.add_argument("--end", help="End datetime in ISO format")
     parser.add_argument("--date", help="Event date in YYYY-MM-DD")
+    parser.add_argument("--relative-date", help="Relative date in Chinese: 今天, 明天, 后天")
     parser.add_argument("--start-time", help="Start time in HH:MM")
     parser.add_argument("--end-time", help="End time in HH:MM")
     parser.add_argument("--description", default="", help="Optional description")
@@ -75,8 +88,15 @@ def main() -> int:
     elif args.date and args.start_time and args.end_time:
         start_value = parse_local_datetime(args.date, args.start_time)
         end_value = parse_local_datetime(args.date, args.end_time)
+    elif args.relative_date and args.start_time and args.end_time:
+        resolved_date = parse_relative_date(args.relative_date)
+        start_value = parse_local_datetime(resolved_date, args.start_time)
+        end_value = parse_local_datetime(resolved_date, args.end_time)
     else:
-        raise SystemExit("Provide either --start/--end or --date/--start-time/--end-time.")
+        raise SystemExit(
+            "Provide either --start/--end, --date/--start-time/--end-time, "
+            "or --relative-date/--start-time/--end-time."
+        )
 
     creds = load_credentials()
     service = build("calendar", "v3", credentials=creds)
