@@ -446,27 +446,45 @@ def normalize_time_label(period: str | None, time_text: str) -> str:
 
 def calendar_create(args: argparse.Namespace) -> int:
     service = calendar_service()
-    if args.start and args.end:
+    if args.all_day and args.date:
+        start_value = args.date
+        end_value = (dt.date.fromisoformat(args.date) + dt.timedelta(days=1)).isoformat()
+        event_start = {"date": start_value}
+        event_end = {"date": end_value}
+    elif args.all_day and args.relative_date:
+        resolved_date = parse_relative_date(args.relative_date)
+        start_value = resolved_date
+        end_value = (dt.date.fromisoformat(resolved_date) + dt.timedelta(days=1)).isoformat()
+        event_start = {"date": start_value}
+        event_end = {"date": end_value}
+    elif args.start and args.end:
         start_value = parse_datetime(args.start)
         end_value = parse_datetime(args.end)
+        event_start = {"dateTime": start_value}
+        event_end = {"dateTime": end_value}
     elif args.date and args.start_time and args.end_time:
         start_value = parse_local_datetime(args.date, normalize_time_label(args.period, args.start_time))
         end_value = parse_local_datetime(args.date, normalize_time_label(args.period, args.end_time))
+        event_start = {"dateTime": start_value}
+        event_end = {"dateTime": end_value}
     elif args.relative_date and args.start_time and args.end_time:
         resolved_date = parse_relative_date(args.relative_date)
         start_value = parse_local_datetime(resolved_date, normalize_time_label(args.period, args.start_time))
         end_value = parse_local_datetime(resolved_date, normalize_time_label(args.period, args.end_time))
+        event_start = {"dateTime": start_value}
+        event_end = {"dateTime": end_value}
     else:
         raise SystemExit(
-            "Provide either --start/--end, --date/--start-time/--end-time, "
+            "Provide either --all-day with --date/--relative-date, "
+            "--start/--end, --date/--start-time/--end-time, "
             "or --relative-date/--start-time/--end-time."
         )
     event = {
         "summary": args.summary,
         "description": args.description,
         "location": args.location,
-        "start": {"dateTime": start_value},
-        "end": {"dateTime": end_value},
+        "start": event_start,
+        "end": event_end,
     }
     created = service.events().insert(calendarId="primary", body=event).execute()
     print("Created event:")
@@ -510,6 +528,7 @@ def main() -> int:
     calendar_create_parser.add_argument("--period", help="Optional Chinese period label: 上午, 下午, 晚上")
     calendar_create_parser.add_argument("--start-time", help="Start time in HH:MM")
     calendar_create_parser.add_argument("--end-time", help="End time in HH:MM")
+    calendar_create_parser.add_argument("--all-day", action="store_true", help="Create an all-day event")
     calendar_create_parser.add_argument("--description", default="", help="Optional description")
     calendar_create_parser.add_argument("--location", default="", help="Optional location")
     calendar_create_parser.set_defaults(func=calendar_create)
