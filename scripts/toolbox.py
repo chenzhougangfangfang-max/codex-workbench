@@ -346,6 +346,35 @@ def calendar_list_ids(_: argparse.Namespace) -> int:
     return 0
 
 
+def calendar_search(args: argparse.Namespace) -> int:
+    service = calendar_service()
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
+    events_result = (
+        service.events()
+        .list(
+            calendarId="primary",
+            timeMin=now,
+            maxResults=50,
+            singleEvents=True,
+            orderBy="startTime",
+        )
+        .execute()
+    )
+    events = events_result.get("items", [])
+    keyword = args.keyword.strip().lower()
+    matched = [
+        event for event in events if keyword in event.get("summary", "").lower()
+    ]
+
+    if not matched:
+        print(f'No upcoming events matched "{args.keyword}".')
+        return 0
+
+    for idx, event in enumerate(matched, 1):
+        print_calendar_event(idx, event, show_id=True)
+    return 0
+
+
 def calendar_today(_: argparse.Namespace) -> int:
     service = calendar_service()
     local_now = dt.datetime.now().astimezone()
@@ -608,6 +637,12 @@ def main() -> int:
         "list-ids", help="List upcoming events with event IDs."
     )
     calendar_list_ids_parser.set_defaults(func=calendar_list_ids)
+
+    calendar_search_parser = calendar_subparsers.add_parser(
+        "search", help="Search upcoming events by summary keyword."
+    )
+    calendar_search_parser.add_argument("keyword", help="Keyword to search in event titles")
+    calendar_search_parser.set_defaults(func=calendar_search)
 
     calendar_today_parser = calendar_subparsers.add_parser("today", help="List today's calendar events.")
     calendar_today_parser.set_defaults(func=calendar_today)

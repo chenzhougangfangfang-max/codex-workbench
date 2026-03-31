@@ -18,6 +18,7 @@ python3 scripts/toolbox.py calendar today
 python3 scripts/toolbox.py calendar day 明天
 python3 scripts/toolbox.py calendar list
 python3 scripts/toolbox.py calendar list-ids
+python3 scripts/toolbox.py calendar search "和客户开会"
 python3 scripts/toolbox.py calendar create \
   --summary "和客户开会" \
   --start "2026-04-01T09:00:00+08:00" \
