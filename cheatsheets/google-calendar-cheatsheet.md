@@ -17,6 +17,10 @@ source .venv/bin/activate
 python3 scripts/toolbox.py calendar today
 python3 scripts/toolbox.py calendar day 明天
 python3 scripts/toolbox.py calendar summary today
+python3 scripts/toolbox.py calendar summary today --format feishu
+python3 scripts/toolbox.py calendar summary today --format telegram
+python3 scripts/toolbox.py calendar push today --channel feishu --user-id ou_xxx
+python3 scripts/toolbox.py calendar push today --channel telegram --chat-id 123456789 --token "<bot_token>"
 python3 scripts/toolbox.py calendar list
 python3 scripts/toolbox.py calendar list-ids
 python3 scripts/toolbox.py calendar search "和客户开会"
@@ -134,9 +138,28 @@ python3 scripts/google-calendar/create_event.py \
   --description "全天请假"
 ```
 
+Format summary output for messaging:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/toolbox.py calendar summary today --format feishu
+python3 scripts/toolbox.py calendar summary today --format telegram
+```
+
+Push today summary directly:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/toolbox.py calendar push today --channel feishu --user-id ou_xxx
+python3 scripts/toolbox.py calendar push today --channel telegram --chat-id 123456789 --token "<bot_token>"
+```
+
 ## Notes
 
 - `credentials.json` and `token.json` are local only and ignored by Git
+- Telegram push can also read `TELEGRAM_BOT_TOKEN` from the environment
 - Event listings now include Chinese lunar date annotations
 - Event times should use ISO format with timezone, for example:
   `2026-04-01T09:00:00+08:00`

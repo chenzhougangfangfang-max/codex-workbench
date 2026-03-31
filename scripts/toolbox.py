@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 import argparse
 import datetime as dt
+import json
+import os
 import re
+import subprocess
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -18,6 +24,7 @@ CALENDAR_DIR = Path("/home/chengang/桌面/codex-workbench/scripts/google-calend
 CALENDAR_CREDENTIALS_FILE = CALENDAR_DIR / "credentials.json"
 CALENDAR_TOKEN_FILE = CALENDAR_DIR / "token.json"
 CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
+LARK_CLI_BIN = Path("/home/chengang/.npm-global/bin/lark-cli")
 
 
 def has_skill_md(path: Path) -> bool:
@@ -451,6 +458,37 @@ def calendar_day(args: argparse.Namespace) -> int:
 
 
 def calendar_summary_today(_: argparse.Namespace) -> int:
+    return calendar_summary_today_impl("plain")
+
+
+def format_summary_lines(events: list[dict], style: str) -> list[str]:
+    lines = []
+    for idx, event in enumerate(events, 1):
+        start = event.get("start", {})
+        if "dateTime" in start:
+            start_text = dt.datetime.fromisoformat(start["dateTime"]).strftime("%H:%M")
+        else:
+            start_text = "全天"
+        summary = event.get("summary", "(no title)")
+        description = (event.get("description") or "").strip()
+
+        if style == "feishu":
+            line = f"{idx}. {start_text} {summary}"
+            if description:
+                line += f"｜{description}"
+        elif style == "telegram":
+            line = f"- {start_text} {summary}"
+            if description:
+                line += f" | {description}"
+        else:
+            line = f"{idx}. {start_text} {summary}"
+            if description:
+                line += f" - {description}"
+        lines.append(line)
+    return lines
+
+
+def build_calendar_summary_today(style: str) -> str:
     service = calendar_service()
     local_now = dt.datetime.now().astimezone()
     start_of_day = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -469,25 +507,89 @@ def calendar_summary_today(_: argparse.Namespace) -> int:
     )
     events = events_result.get("items", [])
 
-    header = f"今日安排 {start_of_day.date()} | {format_lunar(start_of_day.date())}"
+    if style == "feishu":
+        header = f"今日安排｜{start_of_day.date()}｜{format_lunar(start_of_day.date())}"
+    elif style == "telegram":
+        header = f"今日安排 {start_of_day.date()} | {format_lunar(start_of_day.date())}"
+    else:
+        header = f"今日安排 {start_of_day.date()} | {format_lunar(start_of_day.date())}"
+
     if not events:
-        print(header)
-        print("今天没有日程安排。")
+        return "\n".join([header, "今天没有日程安排。"])
+
+    return "\n".join([header, *format_summary_lines(events, style)])
+
+
+def calendar_summary_today_impl(style: str) -> int:
+    print(build_calendar_summary_today(style))
+    return 0
+
+
+def calendar_summary_today_formatted(args: argparse.Namespace) -> int:
+    return calendar_summary_today_impl(args.format)
+
+
+def push_feishu_message(user_id: str, text: str) -> None:
+    if not LARK_CLI_BIN.exists():
+        raise SystemExit(f"lark-cli not found at {LARK_CLI_BIN}")
+    cmd = [
+        str(LARK_CLI_BIN),
+        "im",
+        "+messages-send",
+        "--as",
+        "bot",
+        "--user-id",
+        user_id,
+        "--text",
+        text,
+    ]
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        raise SystemExit(f"Feishu push failed: {detail}")
+
+
+def push_telegram_message(chat_id: str, token: str, text: str) -> None:
+    payload = urllib.parse.urlencode(
+        {
+            "chat_id": chat_id,
+            "text": text,
+        }
+    ).encode("utf-8")
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    req = urllib.request.Request(url, data=payload, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise SystemExit(f"Telegram push failed: HTTP {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise SystemExit(f"Telegram push failed: {exc.reason}") from exc
+
+    data = json.loads(body)
+    if not data.get("ok"):
+        raise SystemExit(f"Telegram push failed: {body}")
+
+
+def calendar_push_today(args: argparse.Namespace) -> int:
+    style = "feishu" if args.channel == "feishu" else "telegram"
+    text = build_calendar_summary_today(style)
+
+    if args.channel == "feishu":
+        if not args.user_id:
+            raise SystemExit("Feishu push requires --user-id with an ou_xxx open_id.")
+        push_feishu_message(args.user_id, text)
+        print(f"Sent today summary to Feishu user: {args.user_id}")
         return 0
 
-    print(header)
-    for idx, event in enumerate(events, 1):
-        start = event.get("start", {})
-        if "dateTime" in start:
-            start_text = dt.datetime.fromisoformat(start["dateTime"]).strftime("%H:%M")
-        else:
-            start_text = "全天"
-        summary = event.get("summary", "(no title)")
-        description = (event.get("description") or "").strip()
-        line = f"{idx}. {start_text} {summary}"
-        if description:
-            line += f" - {description}"
-        print(line)
+    token = args.token or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not args.chat_id:
+        raise SystemExit("Telegram push requires --chat-id.")
+    if not token:
+        raise SystemExit("Telegram push requires --token or TELEGRAM_BOT_TOKEN.")
+    push_telegram_message(args.chat_id, token, text)
+    print(f"Sent today summary to Telegram chat: {args.chat_id}")
     return 0
 
 
@@ -738,7 +840,22 @@ def main() -> int:
     calendar_summary_parser = calendar_subparsers.add_parser("summary", help="Print a compact calendar summary.")
     calendar_summary_subparsers = calendar_summary_parser.add_subparsers(dest="calendar_summary_command", required=True)
     calendar_summary_today_parser = calendar_summary_subparsers.add_parser("today", help="Summarize today's events.")
-    calendar_summary_today_parser.set_defaults(func=calendar_summary_today)
+    calendar_summary_today_parser.add_argument(
+        "--format",
+        choices=["plain", "feishu", "telegram"],
+        default="plain",
+        help="Output style for downstream messaging",
+    )
+    calendar_summary_today_parser.set_defaults(func=calendar_summary_today_formatted)
+
+    calendar_push_parser = calendar_subparsers.add_parser("push", help="Push calendar output to a message channel.")
+    calendar_push_subparsers = calendar_push_parser.add_subparsers(dest="calendar_push_command", required=True)
+    calendar_push_today_parser = calendar_push_subparsers.add_parser("today", help="Push today's summary.")
+    calendar_push_today_parser.add_argument("--channel", choices=["feishu", "telegram"], required=True)
+    calendar_push_today_parser.add_argument("--user-id", help="Feishu open_id (ou_xxx)")
+    calendar_push_today_parser.add_argument("--chat-id", help="Telegram chat_id")
+    calendar_push_today_parser.add_argument("--token", help="Telegram bot token; can also use TELEGRAM_BOT_TOKEN")
+    calendar_push_today_parser.set_defaults(func=calendar_push_today)
 
     calendar_day_parser = calendar_subparsers.add_parser("day", help="List events for 今天/明天/后天.")
     calendar_day_parser.add_argument("relative_date", help="One of: 今天, 明天, 后天")
