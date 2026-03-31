@@ -2,6 +2,14 @@
 
 Personal AI tooling workspace for Codex, GitHub CLI, Feishu CLI, browser automation, and reusable prompt cheatsheets.
 
+## Repository map
+
+- `README.md`: project overview
+- `docs/`: higher-level notes, reports, and workflow docs
+- `cheatsheets/`: quick references for daily tools and prompts
+- `scripts/`: local utilities and validation scripts
+- `skills/`: custom skill definitions or exported skill metadata
+
 ## What's inside
 
 - `cheatsheets/`: quick references for daily tools and skills
@@ -52,6 +60,12 @@ Run the local skill listing utility:
 
 ```bash
 python3 scripts/find-skills.py
+```
+
+Run the bundled skill validator:
+
+```bash
+python3 scripts/skill-vetter/check_skill.py skills/skill-vetter
 ```
 
 ## Purpose
