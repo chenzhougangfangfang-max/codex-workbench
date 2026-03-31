@@ -41,6 +41,11 @@ python3 scripts/toolbox.py calendar create \
   --start-time "09:00" \
   --end-time "10:00" \
   --description "讨论需求"
+python3 scripts/toolbox.py calendar create \
+  --summary "请假" \
+  --relative-date "明天" \
+  --all-day \
+  --description "全天请假"
 ```
 
 Show today:
@@ -109,6 +114,18 @@ python3 scripts/google-calendar/create_event.py \
   --start-time "09:00" \
   --end-time "10:00" \
   --description "讨论需求"
+```
+
+Create an all-day event:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/google-calendar/create_event.py \
+  --summary "请假" \
+  --relative-date "明天" \
+  --all-day \
+  --description "全天请假"
 ```
 
 ## Notes
