@@ -46,6 +46,7 @@ python3 scripts/toolbox.py calendar create \
   --relative-date "明天" \
   --all-day \
   --description "全天请假"
+python3 scripts/toolbox.py calendar create-text "明天下午三点和客户开会，讨论需求"
 ```
 
 Show today:

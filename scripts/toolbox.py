@@ -444,6 +444,54 @@ def normalize_time_label(period: str | None, time_text: str) -> str:
     return f"{hour:02d}:{minute:02d}"
 
 
+def parse_chinese_hour(text: str) -> int:
+    mapping = {
+        "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6,
+        "七": 7, "八": 8, "九": 9, "十": 10, "十一": 11, "十二": 12,
+        "两": 2,
+    }
+    if text.isdigit():
+        hour = int(text)
+    elif text in mapping:
+        hour = mapping[text]
+    else:
+        raise SystemExit("Unsupported hour format. Use digits or common Chinese hour words.")
+    if not 0 <= hour <= 23:
+        raise SystemExit("Hour out of range.")
+    return hour
+
+
+def parse_natural_event(text: str) -> dict:
+    pattern = re.compile(
+        r"^(今天|明天|后天)(上午|下午|晚上)?([零一二三四五六七八九十两\d]+)点(半)?(.+?)(?:[，,]\s*(.+))?$"
+    )
+    match = pattern.match(text.strip())
+    if not match:
+        raise SystemExit(
+            "Unsupported text. Example: 明天下午三点和客户开会，讨论需求"
+        )
+
+    relative_date, period, hour_text, half, summary, description = match.groups()
+    hour = parse_chinese_hour(hour_text)
+    minute = "30" if half else "00"
+    start_time = f"{hour:02d}:{minute}"
+
+    start_iso = parse_local_datetime(
+        parse_relative_date(relative_date),
+        normalize_time_label(period, start_time),
+    )
+    start_dt = dt.datetime.fromisoformat(start_iso)
+    end_dt = start_dt + dt.timedelta(hours=1)
+
+    return {
+        "summary": summary.strip(),
+        "description": (description or "").strip(),
+        "location": "",
+        "start": {"dateTime": start_dt.isoformat()},
+        "end": {"dateTime": end_dt.isoformat()},
+    }
+
+
 def calendar_create(args: argparse.Namespace) -> int:
     service = calendar_service()
     if args.all_day and args.date:
@@ -492,6 +540,15 @@ def calendar_create(args: argparse.Namespace) -> int:
     return 0
 
 
+def calendar_create_text(args: argparse.Namespace) -> int:
+    service = calendar_service()
+    event = parse_natural_event(args.text)
+    created = service.events().insert(calendarId="primary", body=event).execute()
+    print("Created event:")
+    print(created.get("htmlLink", "(no link)"))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Unified toolbox entrypoint for local Codex utilities.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -532,6 +589,15 @@ def main() -> int:
     calendar_create_parser.add_argument("--description", default="", help="Optional description")
     calendar_create_parser.add_argument("--location", default="", help="Optional location")
     calendar_create_parser.set_defaults(func=calendar_create)
+
+    calendar_create_text_parser = calendar_subparsers.add_parser(
+        "create-text", help="Create an event from a short Chinese sentence."
+    )
+    calendar_create_text_parser.add_argument(
+        "text",
+        help='Example: "明天下午三点和客户开会，讨论需求"',
+    )
+    calendar_create_text_parser.set_defaults(func=calendar_create_text)
 
     args = parser.parse_args()
     return args.func(args)
