@@ -17,6 +17,7 @@ source .venv/bin/activate
 python3 scripts/toolbox.py calendar today
 python3 scripts/toolbox.py calendar day 明天
 python3 scripts/toolbox.py calendar list
+python3 scripts/toolbox.py calendar list-ids
 python3 scripts/toolbox.py calendar create \
   --summary "和客户开会" \
   --start "2026-04-01T09:00:00+08:00" \
@@ -47,6 +48,7 @@ python3 scripts/toolbox.py calendar create \
   --all-day \
   --description "全天请假"
 python3 scripts/toolbox.py calendar create-text "明天下午三点和客户开会，讨论需求"
+python3 scripts/toolbox.py calendar delete <event_id>
 ```
 
 Show today:

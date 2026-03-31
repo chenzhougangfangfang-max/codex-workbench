@@ -285,6 +285,17 @@ def parse_event_date(event: dict) -> dt.date | None:
     return None
 
 
+def print_calendar_event(idx: int, event: dict, show_id: bool = False) -> None:
+    start = event["start"].get("dateTime", event["start"].get("date"))
+    summary = event.get("summary", "(no title)")
+    event_date = parse_event_date(event)
+    lunar_text = f"  [{format_lunar(event_date)}]" if event_date else ""
+    if show_id:
+        print(f"{idx}. {start}  {summary}{lunar_text}  [id={event.get('id', '')}]")
+    else:
+        print(f"{idx}. {start}  {summary}{lunar_text}")
+
+
 def calendar_list(_: argparse.Namespace) -> int:
     service = calendar_service()
     now = dt.datetime.now(dt.timezone.utc).isoformat()
@@ -306,11 +317,32 @@ def calendar_list(_: argparse.Namespace) -> int:
         return 0
 
     for idx, event in enumerate(events, 1):
-        start = event["start"].get("dateTime", event["start"].get("date"))
-        summary = event.get("summary", "(no title)")
-        event_date = parse_event_date(event)
-        lunar_text = f"  [{format_lunar(event_date)}]" if event_date else ""
-        print(f"{idx}. {start}  {summary}{lunar_text}")
+        print_calendar_event(idx, event)
+    return 0
+
+
+def calendar_list_ids(_: argparse.Namespace) -> int:
+    service = calendar_service()
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
+    events_result = (
+        service.events()
+        .list(
+            calendarId="primary",
+            timeMin=now,
+            maxResults=20,
+            singleEvents=True,
+            orderBy="startTime",
+        )
+        .execute()
+    )
+    events = events_result.get("items", [])
+
+    if not events:
+        print("No upcoming events found.")
+        return 0
+
+    for idx, event in enumerate(events, 1):
+        print_calendar_event(idx, event, show_id=True)
     return 0
 
 
@@ -385,11 +417,7 @@ def calendar_day(args: argparse.Namespace) -> int:
 
     print(f"{args.relative_date}的事件 ({target_date}, {format_lunar(target_date)}):")
     for idx, event in enumerate(events, 1):
-        start = event["start"].get("dateTime", event["start"].get("date"))
-        summary = event.get("summary", "(no title)")
-        event_date = parse_event_date(event)
-        lunar_text = f"  [{format_lunar(event_date)}]" if event_date else ""
-        print(f"{idx}. {start}  {summary}{lunar_text}")
+        print_calendar_event(idx, event)
     return 0
 
 
@@ -549,6 +577,13 @@ def calendar_create_text(args: argparse.Namespace) -> int:
     return 0
 
 
+def calendar_delete(args: argparse.Namespace) -> int:
+    service = calendar_service()
+    service.events().delete(calendarId="primary", eventId=args.event_id).execute()
+    print(f"Deleted event: {args.event_id}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Unified toolbox entrypoint for local Codex utilities.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -568,6 +603,11 @@ def main() -> int:
 
     calendar_list_parser = calendar_subparsers.add_parser("list", help="List the next 10 calendar events.")
     calendar_list_parser.set_defaults(func=calendar_list)
+
+    calendar_list_ids_parser = calendar_subparsers.add_parser(
+        "list-ids", help="List upcoming events with event IDs."
+    )
+    calendar_list_ids_parser.set_defaults(func=calendar_list_ids)
 
     calendar_today_parser = calendar_subparsers.add_parser("today", help="List today's calendar events.")
     calendar_today_parser.set_defaults(func=calendar_today)
@@ -598,6 +638,10 @@ def main() -> int:
         help='Example: "明天下午三点和客户开会，讨论需求"',
     )
     calendar_create_text_parser.set_defaults(func=calendar_create_text)
+
+    calendar_delete_parser = calendar_subparsers.add_parser("delete", help="Delete an event by event ID.")
+    calendar_delete_parser.add_argument("event_id", help="Google Calendar event ID")
+    calendar_delete_parser.set_defaults(func=calendar_delete)
 
     args = parser.parse_args()
     return args.func(args)
