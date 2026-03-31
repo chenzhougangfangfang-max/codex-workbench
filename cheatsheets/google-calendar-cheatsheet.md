@@ -201,6 +201,15 @@ python3 scripts/toolbox.py digest push today --channel telegram --chat-id 824153
 python3 scripts/toolbox.py calendar push today --channel telegram --chat-id 8241532640
 ```
 
+Use the local wrapper script to reduce typing:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+FEISHU_USER_IDS="ou_xxx,ou_yyy" ./scripts/send-digest.sh
+FEISHU_USER_IDS="ou_xxx" TELEGRAM_CHAT_IDS="8241532640" TELEGRAM_BOT_TOKEN="<bot_token>" ./scripts/send-digest.sh
+FEISHU_USER_IDS="ou_xxx" ./scripts/send-digest.sh calendar
+```
+
 ## Notes
 
 - `credentials.json` and `token.json` are local only and ignored by Git

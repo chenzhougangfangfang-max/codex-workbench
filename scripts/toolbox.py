@@ -632,9 +632,13 @@ def digest_push_today(args: argparse.Namespace) -> int:
 
     if args.channel == "feishu":
         if not args.user_id:
-            raise SystemExit("Feishu push requires --user-id with an ou_xxx open_id.")
-        push_feishu_message(args.user_id, text)
-        print(f"Sent today digest to Feishu user: {args.user_id}")
+            raise SystemExit("Feishu push requires at least one --user-id with an ou_xxx open_id.")
+        sent = 0
+        for user_id in args.user_id:
+            push_feishu_message(user_id, text)
+            print(f"Sent today digest to Feishu user: {user_id}")
+            sent += 1
+        print(f"Feishu digest push completed: {sent} recipient(s)")
         return 0
 
     token = args.token or os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -973,7 +977,7 @@ def main() -> int:
     digest_push_subparsers = digest_push_parser.add_subparsers(dest="digest_push_command", required=True)
     digest_push_today_parser = digest_push_subparsers.add_parser("today", help="Push today's combined digest.")
     digest_push_today_parser.add_argument("--channel", choices=["feishu", "telegram"], required=True)
-    digest_push_today_parser.add_argument("--user-id", help="Feishu open_id (ou_xxx)")
+    digest_push_today_parser.add_argument("--user-id", action="append", help="Feishu open_id (ou_xxx); repeat for multiple recipients")
     digest_push_today_parser.add_argument("--chat-id", help="Telegram chat_id")
     digest_push_today_parser.add_argument("--token", help="Telegram bot token; can also use TELEGRAM_BOT_TOKEN")
     digest_push_today_parser.set_defaults(func=digest_push_today)
