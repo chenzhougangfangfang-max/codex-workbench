@@ -613,6 +613,53 @@ def calendar_delete(args: argparse.Namespace) -> int:
     return 0
 
 
+def calendar_update(args: argparse.Namespace) -> int:
+    service = calendar_service()
+    event = service.events().get(calendarId="primary", eventId=args.event_id).execute()
+
+    if args.summary is not None:
+        event["summary"] = args.summary
+    if args.description is not None:
+        event["description"] = args.description
+    if args.location is not None:
+        event["location"] = args.location
+
+    if args.all_day and args.date:
+        start_value = args.date
+        end_value = (dt.date.fromisoformat(args.date) + dt.timedelta(days=1)).isoformat()
+        event["start"] = {"date": start_value}
+        event["end"] = {"date": end_value}
+    elif args.all_day and args.relative_date:
+        resolved_date = parse_relative_date(args.relative_date)
+        start_value = resolved_date
+        end_value = (dt.date.fromisoformat(resolved_date) + dt.timedelta(days=1)).isoformat()
+        event["start"] = {"date": start_value}
+        event["end"] = {"date": end_value}
+    elif args.start and args.end:
+        event["start"] = {"dateTime": parse_datetime(args.start)}
+        event["end"] = {"dateTime": parse_datetime(args.end)}
+    elif args.date and args.start_time and args.end_time:
+        event["start"] = {
+            "dateTime": parse_local_datetime(args.date, normalize_time_label(args.period, args.start_time))
+        }
+        event["end"] = {
+            "dateTime": parse_local_datetime(args.date, normalize_time_label(args.period, args.end_time))
+        }
+    elif args.relative_date and args.start_time and args.end_time:
+        resolved_date = parse_relative_date(args.relative_date)
+        event["start"] = {
+            "dateTime": parse_local_datetime(resolved_date, normalize_time_label(args.period, args.start_time))
+        }
+        event["end"] = {
+            "dateTime": parse_local_datetime(resolved_date, normalize_time_label(args.period, args.end_time))
+        }
+
+    updated = service.events().update(calendarId="primary", eventId=args.event_id, body=event).execute()
+    print("Updated event:")
+    print(updated.get("htmlLink", "(no link)"))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Unified toolbox entrypoint for local Codex utilities.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -677,6 +724,21 @@ def main() -> int:
     calendar_delete_parser = calendar_subparsers.add_parser("delete", help="Delete an event by event ID.")
     calendar_delete_parser.add_argument("event_id", help="Google Calendar event ID")
     calendar_delete_parser.set_defaults(func=calendar_delete)
+
+    calendar_update_parser = calendar_subparsers.add_parser("update", help="Update an event by event ID.")
+    calendar_update_parser.add_argument("event_id", help="Google Calendar event ID")
+    calendar_update_parser.add_argument("--summary", help="New event title")
+    calendar_update_parser.add_argument("--description", help="New description")
+    calendar_update_parser.add_argument("--location", help="New location")
+    calendar_update_parser.add_argument("--start", help="Start datetime in ISO format")
+    calendar_update_parser.add_argument("--end", help="End datetime in ISO format")
+    calendar_update_parser.add_argument("--date", help="Event date in YYYY-MM-DD")
+    calendar_update_parser.add_argument("--relative-date", help="Relative date in Chinese: 今天, 明天, 后天")
+    calendar_update_parser.add_argument("--period", help="Optional Chinese period label: 上午, 下午, 晚上")
+    calendar_update_parser.add_argument("--start-time", help="Start time in HH:MM")
+    calendar_update_parser.add_argument("--end-time", help="End time in HH:MM")
+    calendar_update_parser.add_argument("--all-day", action="store_true", help="Convert to an all-day event")
+    calendar_update_parser.set_defaults(func=calendar_update)
 
     args = parser.parse_args()
     return args.func(args)
