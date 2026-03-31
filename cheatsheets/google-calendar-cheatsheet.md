@@ -16,6 +16,7 @@ cd /home/chengang/桌面/codex-workbench
 source .venv/bin/activate
 python3 scripts/toolbox.py calendar today
 python3 scripts/toolbox.py calendar day 明天
+python3 scripts/toolbox.py calendar summary today
 python3 scripts/toolbox.py calendar list
 python3 scripts/toolbox.py calendar list-ids
 python3 scripts/toolbox.py calendar search "和客户开会"

@@ -450,6 +450,47 @@ def calendar_day(args: argparse.Namespace) -> int:
     return 0
 
 
+def calendar_summary_today(_: argparse.Namespace) -> int:
+    service = calendar_service()
+    local_now = dt.datetime.now().astimezone()
+    start_of_day = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = start_of_day + dt.timedelta(days=1)
+
+    events_result = (
+        service.events()
+        .list(
+            calendarId="primary",
+            timeMin=start_of_day.isoformat(),
+            timeMax=end_of_day.isoformat(),
+            singleEvents=True,
+            orderBy="startTime",
+        )
+        .execute()
+    )
+    events = events_result.get("items", [])
+
+    header = f"今日安排 {start_of_day.date()} | {format_lunar(start_of_day.date())}"
+    if not events:
+        print(header)
+        print("今天没有日程安排。")
+        return 0
+
+    print(header)
+    for idx, event in enumerate(events, 1):
+        start = event.get("start", {})
+        if "dateTime" in start:
+            start_text = dt.datetime.fromisoformat(start["dateTime"]).strftime("%H:%M")
+        else:
+            start_text = "全天"
+        summary = event.get("summary", "(no title)")
+        description = (event.get("description") or "").strip()
+        line = f"{idx}. {start_text} {summary}"
+        if description:
+            line += f" - {description}"
+        print(line)
+    return 0
+
+
 def parse_datetime(value: str) -> str:
     try:
         return dt.datetime.fromisoformat(value).isoformat()
@@ -693,6 +734,11 @@ def main() -> int:
 
     calendar_today_parser = calendar_subparsers.add_parser("today", help="List today's calendar events.")
     calendar_today_parser.set_defaults(func=calendar_today)
+
+    calendar_summary_parser = calendar_subparsers.add_parser("summary", help="Print a compact calendar summary.")
+    calendar_summary_subparsers = calendar_summary_parser.add_subparsers(dest="calendar_summary_command", required=True)
+    calendar_summary_today_parser = calendar_summary_subparsers.add_parser("today", help="Summarize today's events.")
+    calendar_summary_today_parser.set_defaults(func=calendar_summary_today)
 
     calendar_day_parser = calendar_subparsers.add_parser("day", help="List events for 今天/明天/后天.")
     calendar_day_parser.add_argument("relative_date", help="One of: 今天, 明天, 后天")
