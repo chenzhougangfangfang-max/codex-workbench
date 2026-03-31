@@ -593,6 +593,39 @@ def calendar_push_today(args: argparse.Namespace) -> int:
     return 0
 
 
+def format_zh_date(date_value: dt.date) -> str:
+    weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+    return f"{date_value.year}年{date_value.month}月{date_value.day}日 {weekdays[date_value.weekday()]}"
+
+
+def build_news_request_today(style: str) -> str:
+    today = dt.date.today()
+    iso_date = today.isoformat()
+    zh_date = format_zh_date(today)
+
+    lines = [
+        f"今日新闻摘要请求｜{zh_date}" if style == "feishu" else f"今日新闻摘要请求 | {zh_date}",
+        f"1. 搜索「今日重要新闻 {iso_date}」",
+        "2. 搜索「今日国际新闻」",
+        "3. 搜索「今日财经新闻」",
+        "4. 综合去重，选取 10 条覆盖不同领域的重要新闻",
+        "5. 每条保留标题、来源、2 句摘要",
+    ]
+    return "\n".join(lines)
+
+
+def build_daily_digest_today(style: str) -> str:
+    calendar_text = build_calendar_summary_today(style)
+    news_text = build_news_request_today(style)
+    divider = "\n\n" if style != "telegram" else "\n\n"
+    return calendar_text + divider + news_text
+
+
+def digest_today(args: argparse.Namespace) -> int:
+    print(build_daily_digest_today(args.format))
+    return 0
+
+
 def parse_datetime(value: str) -> str:
     try:
         return dt.datetime.fromisoformat(value).isoformat()
@@ -902,6 +935,19 @@ def main() -> int:
     calendar_update_parser.add_argument("--end-time", help="End time in HH:MM")
     calendar_update_parser.add_argument("--all-day", action="store_true", help="Convert to an all-day event")
     calendar_update_parser.set_defaults(func=calendar_update)
+
+    digest_parser = subparsers.add_parser("digest", help="Combined daily outputs for messaging.")
+    digest_subparsers = digest_parser.add_subparsers(dest="digest_command", required=True)
+    digest_today_parser = digest_subparsers.add_parser(
+        "today", help="Combine today's calendar summary with a news-summary request template."
+    )
+    digest_today_parser.add_argument(
+        "--format",
+        choices=["plain", "feishu", "telegram"],
+        default="plain",
+        help="Output style for downstream messaging",
+    )
+    digest_today_parser.set_defaults(func=digest_today)
 
     args = parser.parse_args()
     return args.func(args)

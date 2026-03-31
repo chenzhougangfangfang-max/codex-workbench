@@ -21,6 +21,9 @@ python3 scripts/toolbox.py calendar summary today --format feishu
 python3 scripts/toolbox.py calendar summary today --format telegram
 python3 scripts/toolbox.py calendar push today --channel feishu --user-id ou_xxx
 python3 scripts/toolbox.py calendar push today --channel telegram --chat-id 123456789 --token "<bot_token>"
+python3 scripts/toolbox.py digest today
+python3 scripts/toolbox.py digest today --format feishu
+python3 scripts/toolbox.py digest today --format telegram
 python3 scripts/toolbox.py calendar list
 python3 scripts/toolbox.py calendar list-ids
 python3 scripts/toolbox.py calendar search "和客户开会"
@@ -156,10 +159,21 @@ python3 scripts/toolbox.py calendar push today --channel feishu --user-id ou_xxx
 python3 scripts/toolbox.py calendar push today --channel telegram --chat-id 123456789 --token "<bot_token>"
 ```
 
+Combine today calendar and news request:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/toolbox.py digest today
+python3 scripts/toolbox.py digest today --format feishu
+python3 scripts/toolbox.py digest today --format telegram
+```
+
 ## Notes
 
 - `credentials.json` and `token.json` are local only and ignored by Git
 - Telegram push can also read `TELEGRAM_BOT_TOKEN` from the environment
 - Event listings now include Chinese lunar date annotations
+- `digest today` 目前合并的是“今日日历摘要 + 今日新闻摘要请求模板”，新闻部分不是本地实时抓取结果
 - Event times should use ISO format with timezone, for example:
   `2026-04-01T09:00:00+08:00`
