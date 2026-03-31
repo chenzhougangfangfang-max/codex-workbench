@@ -15,6 +15,7 @@ Unified entrypoint:
 cd /home/chengang/桌面/codex-workbench
 source .venv/bin/activate
 python3 scripts/toolbox.py calendar today
+python3 scripts/toolbox.py calendar day 明天
 python3 scripts/toolbox.py calendar list
 python3 scripts/toolbox.py calendar create \
   --summary "和客户开会" \

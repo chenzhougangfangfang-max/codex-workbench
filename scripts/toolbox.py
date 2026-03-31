@@ -347,6 +347,52 @@ def calendar_today(_: argparse.Namespace) -> int:
     return 0
 
 
+def resolve_relative_date(label: str) -> dt.date:
+    today = dt.date.today()
+    mapping = {
+        "今天": today,
+        "明天": today + dt.timedelta(days=1),
+        "后天": today + dt.timedelta(days=2),
+    }
+    if label not in mapping:
+        raise SystemExit("Relative date must be one of: 今天, 明天, 后天")
+    return mapping[label]
+
+
+def calendar_day(args: argparse.Namespace) -> int:
+    service = calendar_service()
+    target_date = resolve_relative_date(args.relative_date)
+    local_tz = dt.datetime.now().astimezone().tzinfo
+    start_of_day = dt.datetime.combine(target_date, dt.time.min, tzinfo=local_tz)
+    end_of_day = start_of_day + dt.timedelta(days=1)
+
+    events_result = (
+        service.events()
+        .list(
+            calendarId="primary",
+            timeMin=start_of_day.isoformat(),
+            timeMax=end_of_day.isoformat(),
+            singleEvents=True,
+            orderBy="startTime",
+        )
+        .execute()
+    )
+    events = events_result.get("items", [])
+
+    if not events:
+        print(f"No events scheduled for {args.relative_date}.")
+        return 0
+
+    print(f"{args.relative_date}的事件 ({target_date}, {format_lunar(target_date)}):")
+    for idx, event in enumerate(events, 1):
+        start = event["start"].get("dateTime", event["start"].get("date"))
+        summary = event.get("summary", "(no title)")
+        event_date = parse_event_date(event)
+        lunar_text = f"  [{format_lunar(event_date)}]" if event_date else ""
+        print(f"{idx}. {start}  {summary}{lunar_text}")
+    return 0
+
+
 def parse_datetime(value: str) -> str:
     try:
         return dt.datetime.fromisoformat(value).isoformat()
@@ -450,6 +496,10 @@ def main() -> int:
 
     calendar_today_parser = calendar_subparsers.add_parser("today", help="List today's calendar events.")
     calendar_today_parser.set_defaults(func=calendar_today)
+
+    calendar_day_parser = calendar_subparsers.add_parser("day", help="List events for 今天/明天/后天.")
+    calendar_day_parser.add_argument("relative_date", help="One of: 今天, 明天, 后天")
+    calendar_day_parser.set_defaults(func=calendar_day)
 
     calendar_create_parser = calendar_subparsers.add_parser("create", help="Create a calendar event.")
     calendar_create_parser.add_argument("--summary", required=True, help="Event title")
