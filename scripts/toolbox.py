@@ -354,14 +354,32 @@ def parse_datetime(value: str) -> str:
         raise SystemExit("Datetime must use ISO format like 2026-04-01T09:00:00+08:00") from exc
 
 
+def parse_local_datetime(date_text: str, time_text: str) -> str:
+    try:
+        date_part = dt.date.fromisoformat(date_text)
+        time_part = dt.time.fromisoformat(time_text)
+    except ValueError as exc:
+        raise SystemExit("Date/time must use values such as 2026-04-01 and 09:00") from exc
+    local_tz = dt.datetime.now().astimezone().tzinfo
+    return dt.datetime.combine(date_part, time_part, tzinfo=local_tz).isoformat()
+
+
 def calendar_create(args: argparse.Namespace) -> int:
     service = calendar_service()
+    if args.start and args.end:
+        start_value = parse_datetime(args.start)
+        end_value = parse_datetime(args.end)
+    elif args.date and args.start_time and args.end_time:
+        start_value = parse_local_datetime(args.date, args.start_time)
+        end_value = parse_local_datetime(args.date, args.end_time)
+    else:
+        raise SystemExit("Provide either --start/--end or --date/--start-time/--end-time.")
     event = {
         "summary": args.summary,
         "description": args.description,
         "location": args.location,
-        "start": {"dateTime": parse_datetime(args.start)},
-        "end": {"dateTime": parse_datetime(args.end)},
+        "start": {"dateTime": start_value},
+        "end": {"dateTime": end_value},
     }
     created = service.events().insert(calendarId="primary", body=event).execute()
     print("Created event:")
@@ -394,8 +412,11 @@ def main() -> int:
 
     calendar_create_parser = calendar_subparsers.add_parser("create", help="Create a calendar event.")
     calendar_create_parser.add_argument("--summary", required=True, help="Event title")
-    calendar_create_parser.add_argument("--start", required=True, help="Start datetime in ISO format")
-    calendar_create_parser.add_argument("--end", required=True, help="End datetime in ISO format")
+    calendar_create_parser.add_argument("--start", help="Start datetime in ISO format")
+    calendar_create_parser.add_argument("--end", help="End datetime in ISO format")
+    calendar_create_parser.add_argument("--date", help="Event date in YYYY-MM-DD")
+    calendar_create_parser.add_argument("--start-time", help="Start time in HH:MM")
+    calendar_create_parser.add_argument("--end-time", help="End time in HH:MM")
     calendar_create_parser.add_argument("--description", default="", help="Optional description")
     calendar_create_parser.add_argument("--location", default="", help="Optional location")
     calendar_create_parser.set_defaults(func=calendar_create)
