@@ -24,6 +24,8 @@ python3 scripts/toolbox.py calendar push today --channel telegram --chat-id 1234
 python3 scripts/toolbox.py digest today
 python3 scripts/toolbox.py digest today --format feishu
 python3 scripts/toolbox.py digest today --format telegram
+python3 scripts/toolbox.py digest push today --channel feishu --user-id ou_xxx
+python3 scripts/toolbox.py digest push today --channel telegram --chat-id 123456789 --token "<bot_token>"
 python3 scripts/toolbox.py calendar list
 python3 scripts/toolbox.py calendar list-ids
 python3 scripts/toolbox.py calendar search "和客户开会"
@@ -167,6 +169,15 @@ source .venv/bin/activate
 python3 scripts/toolbox.py digest today
 python3 scripts/toolbox.py digest today --format feishu
 python3 scripts/toolbox.py digest today --format telegram
+```
+
+Push combined digest directly:
+
+```bash
+cd /home/chengang/桌面/codex-workbench
+source .venv/bin/activate
+python3 scripts/toolbox.py digest push today --channel feishu --user-id ou_xxx
+python3 scripts/toolbox.py digest push today --channel telegram --chat-id 123456789 --token "<bot_token>"
 ```
 
 ## Notes

@@ -626,6 +626,27 @@ def digest_today(args: argparse.Namespace) -> int:
     return 0
 
 
+def digest_push_today(args: argparse.Namespace) -> int:
+    style = "feishu" if args.channel == "feishu" else "telegram"
+    text = build_daily_digest_today(style)
+
+    if args.channel == "feishu":
+        if not args.user_id:
+            raise SystemExit("Feishu push requires --user-id with an ou_xxx open_id.")
+        push_feishu_message(args.user_id, text)
+        print(f"Sent today digest to Feishu user: {args.user_id}")
+        return 0
+
+    token = args.token or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not args.chat_id:
+        raise SystemExit("Telegram push requires --chat-id.")
+    if not token:
+        raise SystemExit("Telegram push requires --token or TELEGRAM_BOT_TOKEN.")
+    push_telegram_message(args.chat_id, token, text)
+    print(f"Sent today digest to Telegram chat: {args.chat_id}")
+    return 0
+
+
 def parse_datetime(value: str) -> str:
     try:
         return dt.datetime.fromisoformat(value).isoformat()
@@ -948,6 +969,14 @@ def main() -> int:
         help="Output style for downstream messaging",
     )
     digest_today_parser.set_defaults(func=digest_today)
+    digest_push_parser = digest_subparsers.add_parser("push", help="Push the combined daily digest to a message channel.")
+    digest_push_subparsers = digest_push_parser.add_subparsers(dest="digest_push_command", required=True)
+    digest_push_today_parser = digest_push_subparsers.add_parser("today", help="Push today's combined digest.")
+    digest_push_today_parser.add_argument("--channel", choices=["feishu", "telegram"], required=True)
+    digest_push_today_parser.add_argument("--user-id", help="Feishu open_id (ou_xxx)")
+    digest_push_today_parser.add_argument("--chat-id", help="Telegram chat_id")
+    digest_push_today_parser.add_argument("--token", help="Telegram bot token; can also use TELEGRAM_BOT_TOKEN")
+    digest_push_today_parser.set_defaults(func=digest_push_today)
 
     args = parser.parse_args()
     return args.func(args)
